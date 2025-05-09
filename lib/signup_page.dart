@@ -1,21 +1,20 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'login_page.dart';
 import 'qr_page.dart';
-import 'signup_page.dart';
-
 
 const String _baseUrl = 'http://127.0.0.1:8001';
 
-class LoginPage extends StatelessWidget {
-  const LoginPage({super.key});
+class SignupPage extends StatelessWidget {
+  const SignupPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     final emailController = TextEditingController();
     final passwordController = TextEditingController();
 
-    Future<void> login() async {
+    Future<void> register() async {
       final email = emailController.text.trim();
       final password = passwordController.text;
 
@@ -27,12 +26,12 @@ class LoginPage extends StatelessWidget {
 
       try {
         final res = await http.post(
-          Uri.parse('$_baseUrl/auth/login'),
+          Uri.parse('$_baseUrl/auth/register'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({'email': email, 'password': password}),
         );
 
-        if (res.statusCode == 200) {
+        if (res.statusCode == 201) {
           final token = jsonDecode(res.body)['token'] as String;
           Navigator.push(
             context,
@@ -41,7 +40,7 @@ class LoginPage extends StatelessWidget {
             ),
           );
         } else {
-          final msg = jsonDecode(res.body)['detail'] ?? 'Login failed';
+          final msg = jsonDecode(res.body)['detail'] ?? 'Registration failed';
           ScaffoldMessenger.of(context)
               .showSnackBar(SnackBar(content: Text(msg.toString())));
         }
@@ -53,7 +52,7 @@ class LoginPage extends StatelessWidget {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Login')),
+      appBar: AppBar(title: const Text('Register')),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -70,18 +69,18 @@ class LoginPage extends StatelessWidget {
               decoration: const InputDecoration(labelText: 'Password'),
             ),
             const SizedBox(height: 30),
-            ElevatedButton(onPressed: login, child: const Text('Login')),
+            ElevatedButton(onPressed: register, child: const Text('Register')),
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text("Don't have an account? "),
+                const Text('Already have an account? '),
                 TextButton(
-                  onPressed: () => Navigator.push(
+                  onPressed: () => Navigator.pushReplacement(
                     context,
-                    MaterialPageRoute(builder: (_) => const SignupPage()),
+                    MaterialPageRoute(builder: (_) => const LoginPage()),
                   ),
-                  child: const Text('Register'),
+                  child: const Text('Login'),
                 ),
               ],
             ),

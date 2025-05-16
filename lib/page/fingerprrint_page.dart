@@ -1,6 +1,6 @@
-import 'package:mfa_app/api/local_auth_api.dart';
-import 'package:mfa_app/main.dart';
-import 'package:mfa_app/page/home_page.dart';
+import 'package:finger_print_test/api/local_auth_api.dart';
+import 'package:finger_print_test/main.dart';
+import 'package:finger_print_test/page/home_page.dart';
 import 'package:flutter/material.dart';
 import 'package:local_auth/local_auth.dart';
 

@@ -1,12 +1,16 @@
-import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:otp/otp.dart';
-import 'package:percent_indicator/percent_indicator.dart';
-import 'welcome_page.dart';
+import 'package:http/http.dart' as http;
+import 'package:finger_print_test/page/fingerprrint_page.dart';
+import 'welcome_page.dart';   // <— make sure this file exists
+
+/// Which API endpoint to hit.
+enum OtpFlow { login, register }
 
 class OTPScreen extends StatefulWidget {
-  final String secret;
-  const OTPScreen({super.key, required this.secret});
+  final String email;
+  final OtpFlow flow;
+  const OTPScreen({super.key, required this.email, required this.flow});
 
   @override
   State<OTPScreen> createState() => _OTPScreenState();
@@ -14,97 +18,78 @@ class OTPScreen extends StatefulWidget {
 
 class _OTPScreenState extends State<OTPScreen> {
   final otpController = TextEditingController();
-  late Timer _timer;
-  late int _remaining;
-  late String _generatedOTP;
+  bool _loading = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _generateOTP();
-    _startTimer();
+  /// Push WelcomePage and throw away the whole auth stack
+  void _gotoWelcome() {
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => FingerprintPage()),
+      (route) => false,
+    );
   }
 
-  void _startTimer() {
-    _remaining = 30 - (DateTime.now().second % 30);
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      setState(() {
-        _remaining--;
-        if (_remaining <= 0) {
-          _generateOTP();
-          _remaining = 30;
-        }
-      });
-    });
-  }
+  Future<void> _verify() async {
+    final otp = otpController.text.trim();
+    if (otp.length != 6) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Enter a 6-digit code')));
+      return;
+    }
 
-  void _generateOTP() {
-    final now = DateTime.now().millisecondsSinceEpoch;
-    _generatedOTP = OTP.generateTOTPCodeString(widget.secret, now, interval: 30);
-    debugPrint('Generated OTP: $_generatedOTP');
-  }
+    setState(() => _loading = true);
+    final endpoint = widget.flow == OtpFlow.login
+        ? '/auth/login/verify-otp'
+        : '/auth/register/verify-otp';
 
-  void _verifyOTP() {
-    if (otpController.text.trim() == _generatedOTP) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const WelcomePage()),
-      );
+    final res = await http.post(
+      Uri.parse('http://192.168.222.137:8001$endpoint'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': widget.email, 'otp': otp}),
+    );
+
+    setState(() => _loading = false);
+
+    if (res.statusCode == 200) {
+      final jwt = jsonDecode(res.body)['token'];
+      // TODO: securely persist JWT, e.g. using flutter_secure_storage
+      if (!mounted) return;
+      _gotoWelcome();
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Incorrect OTP')),
-      );
+      final msg =
+          jsonDecode(res.body)['detail'] ?? 'OTP verification failed';
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(msg.toString())));
     }
   }
 
   @override
-  void dispose() {
-    _timer.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final percent = _remaining / 30.0;
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('Enter OTP')),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            const Text(
-              'Enter the OTP from your authenticator app:',
-              style: TextStyle(fontSize: 16),
-            ),
-            const SizedBox(height: 20),
-            TextField(
-              controller: otpController,
-              decoration: const InputDecoration(labelText: 'OTP'),
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 30),
-            CircularPercentIndicator(
-              radius: 80.0,
-              lineWidth: 10.0,
-              percent: percent,
-              center: Text(
-                '$_remaining s',
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: const Text('Enter OTP')),
+        body: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            children: [
+              Text(
+                'We sent a 6-digit code to ${widget.email}.',
+                style: const TextStyle(fontSize: 16),
               ),
-              progressColor: Colors.deepPurple,
-              backgroundColor: Colors.white10,
-              animation: true,
-              animateFromLastPercent: true,
-            ),
-            const SizedBox(height: 40),
-            ElevatedButton(
-              onPressed: _verifyOTP,
-              child: const Text('Verify OTP'),
-            ),
-          ],
+              const SizedBox(height: 24),
+              TextField(
+                controller: otpController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'OTP'),
+              ),
+              const SizedBox(height: 32),
+              ElevatedButton(
+                onPressed: _loading ? null : _verify,
+                child: _loading
+                    ? const CircularProgressIndicator()
+                    : const Text('Verify'),
+              ),
+            ],
+          ),
         ),
-      ),
-    );
-  }
+      );
 }

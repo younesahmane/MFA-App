@@ -1,7 +1,7 @@
-import 'package:mfa_app/main.dart';
-import 'package:mfa_app/page/fingerprrint_page.dart';
+import 'package:finger_print_test/main.dart';
+import 'package:finger_print_test/page/fingerprrint_page.dart';
 import 'package:flutter/material.dart';
-
+import 'package:finger_print_test/login_page.dart';
 class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -36,7 +36,7 @@ class HomePage extends StatelessWidget {
           style: TextStyle(fontSize: 20),
         ),
         onPressed: () => Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => FingerprintPage()),
+          MaterialPageRoute(builder: (context) => LoginPage()),
         ),
       );
 }

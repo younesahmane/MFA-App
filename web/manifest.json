@@ -1,6 +1,6 @@
 {
-    "name": "mfa_app",
-    "short_name": "mfa_app",
+    "name": "finger_print_work",
+    "short_name": "finger_print_work",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

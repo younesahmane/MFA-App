@@ -1,51 +1,60 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'qr_page.dart';
+
+import 'otp_screen.dart';     // ➜ expects (email, flow) – see note below
 import 'signup_page.dart';
 
-
-const String _baseUrl = 'http://127.0.0.1:8001';
+const String _baseUrl = 'http://192.168.222.137:8001';       // change to your host:port
 
 class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final emailController = TextEditingController();
-    final passwordController = TextEditingController();
+    final emailCtrl    = TextEditingController();
+    final passwordCtrl = TextEditingController();
 
-    Future<void> login() async {
-      final email = emailController.text.trim();
-      final password = passwordController.text;
+    Future<void> _login() async {
+      final email    = emailCtrl.text.trim();
+      final password = passwordCtrl.text;
 
       if (email.isEmpty || password.isEmpty) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Fill in all fields')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please fill in all fields')),
+        );
         return;
       }
 
       try {
         final res = await http.post(
-          Uri.parse('$_baseUrl/auth/login'),
+          Uri.parse('$_baseUrl/auth/login/send-otp'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({'email': email, 'password': password}),
         );
 
         if (res.statusCode == 200) {
-          final token = jsonDecode(res.body)['token'] as String;
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => QRPage(email: email, secret: token),
-            ),
-          );
+          // First factor accepted ➜ show OTP screen
+          // We *don’t* have a JWT yet; OTP screen will fetch it.
+          if (context.mounted) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => OTPScreen(
+                  email: email,
+                  flow: OtpFlow.login,
+                ),
+              ),
+            );
+          }
         } else {
-          final msg = jsonDecode(res.body)['detail'] ?? 'Login failed';
+          final msg =
+              jsonDecode(res.body)['detail'] ?? 'Login failed – check credentials';
           ScaffoldMessenger.of(context)
               .showSnackBar(SnackBar(content: Text(msg.toString())));
         }
-      } catch (e) {
+      } catch (_) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Network error – try again')),
         );
@@ -60,17 +69,17 @@ class LoginPage extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
-              controller: emailController,
+              controller: emailCtrl,
               decoration: const InputDecoration(labelText: 'Email'),
             ),
             const SizedBox(height: 20),
             TextField(
-              controller: passwordController,
-              obscureText: true,
+              controller: passwordCtrl,
               decoration: const InputDecoration(labelText: 'Password'),
+              obscureText: true,
             ),
             const SizedBox(height: 30),
-            ElevatedButton(onPressed: login, child: const Text('Login')),
+            ElevatedButton(onPressed: _login, child: const Text('Login')),
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
